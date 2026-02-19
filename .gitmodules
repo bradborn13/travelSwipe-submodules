@@ -1,0 +1,6 @@
+[submodule "backend"]
+	path = backend
+	url = https://github.com/bradborn13/TravelSwipe-BE.git
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/bradborn13/TravelSwipe-FE.git
