@@ -1,4 +1,62 @@
 services:
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secretpassword
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: adminPassword
+      POSTGRES_DB: travelswipe
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
+    ports:
+      - "5001:5001"
+    depends_on:
+      - mongodb
+      - postgres
+      - redis
+    environment:
+      MONGO_URL: mongodb://admin:secretpassword@mongodb:27017/travelswipe?authSource=admin
+      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/travelswipe
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    profiles: ["app"]
+
   frontend:
     build:
       context: ./frontend
@@ -12,32 +70,9 @@ services:
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://localhost:5001
-    restart: always
-
-  mongodb:
-    image: mongo:7
-    container_name: mongodb
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: secretpassword
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    env_file:
-      - ./backend/.env
-    ports:
-      - "5001:5001"
-    depends_on:
-      - mongodb
-    environment:
-      MONGO_URL: mongodb://admin:secretpassword@mongodb:27017/travelswipe?authSource=admin
-    restart: always
+    profiles: ["app"]
 
 volumes:
   mongo_data:
+  postgres_data:
+  redis_data:
