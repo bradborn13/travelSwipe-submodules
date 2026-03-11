@@ -4,3 +4,6 @@
 [submodule "frontend"]
 	path = frontend
 	url = https://github.com/bradborn13/TravelSwipe-FE.git
+[submodule "dotNetBe"]
+	path = dotNetBe
+	url = https://github.com/bradborn13/TravelSwipe-DotNet.git
