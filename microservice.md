@@ -33,3 +33,37 @@ Redis Pub/Sub: Used to tell the rest of the system (and the FE) that the data is
 Scalability: If the 3rd party API takes 10 seconds to respond, your Node.js API isn't "stuck" waiting. It's free to handle other users while the "Worker" does the slow job in the background.
 
 Resilience: If the Backend crashes while fetching data, the job stays in the Redis Queue (using something like BullMQ), and it will retry when the server comes back up.
+
+Typical microservice observability stack
+
+A real production system often has three different pipelines:
+
+Metrics
+
+Prometheus
+
+Grafana
+
+Logs
+
+Elasticsearch
+
+Kibana
+
+Tracing
+
+Jaeger
+
+OpenTelemetry
+
+The mental model
+
+Think of it like this:
+
+Event Store → what happened in your business
+
+Prometheus → how your system behaves
+
+Logs → what your code printed
+
+Tracing → how a request traveled through services

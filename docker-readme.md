@@ -13,6 +13,14 @@ docker exec mongodb mongorestore \
  --authenticationDatabase admin \
  /data/backup/travelswipe
 
+/backup Postgresql
+docker exec postgres pg_dump \
+ -U postgres \
+ -d travelswipe \
+ -F c \
+
+> postgres.dump
+
 docker-compose build frontend
 
 For Local Development (The "Development" stage)

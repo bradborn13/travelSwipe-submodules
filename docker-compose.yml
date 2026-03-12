@@ -7,9 +7,13 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: secretpassword
     ports:
       - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - mongo_data:/data/db
-    external: true
     restart: unless-stopped
 
   postgres:
@@ -30,6 +34,24 @@ services:
       timeout: 5s
       retries: 5
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: secretpassword
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   redis:
     image: redis:7
     container_name: redis
@@ -39,29 +61,101 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
-  backend:
+  activities-api:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-    env_file:
-      - ./backend/.env
+      context: ./dotNetBe
+      dockerfile: Activities.Api/Dockerfile
+    container_name: activities-api
     ports:
-      - "5001:5001"
-    depends_on:
-      - mongodb
-      - postgres
-      - redis
+      - "5101:8080"
     environment:
-      MONGO_URL: mongodb://admin:secretpassword@mongodb:27017/travelswipe?authSource=admin
-      POSTGRES_URL: postgresql://postgres:postgres@postgres:5432/travelswipe
+      ASPNETCORE_ENVIRONMENT: Development
+      MONGO_URL: mongodb://admin:secretpassword@mongodb:27017/travelswipe_activities?authSource=admin
+      POSTGRES_URL: postgresql://postgres:adminPassword@postgres:5432/travelswipe_activities
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: admin
+      RABBITMQ_PASS: secretpassword
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["app"]
+
+  cities-api:
+    build:
+      context: ./dotNetBe
+      dockerfile: Cities.Api/Dockerfile
+    container_name: cities-api
+    ports:
+      - "5102:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      POSTGRES_URL: postgresql://postgres:adminPassword@postgres:5432/travelswipe_cities
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: admin
+      RABBITMQ_PASS: secretpassword
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["app"]
+
+  countries-api:
+    build:
+      context: ./dotNetBe
+      dockerfile: Countries.Api/Dockerfile
+    container_name: countries-api
+    ports:
+      - "5103:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      POSTGRES_URL: postgresql://postgres:adminPassword@postgres:5432/travelswipe_countries
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: admin
+      RABBITMQ_PASS: secretpassword
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["app"]
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - activities-api
+      - cities-api
+      - countries-api
+    restart: unless-stopped
     profiles: ["app"]
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: frontend
     ports:
       - "3000:3000"
     volumes:
@@ -70,10 +164,15 @@ services:
       - /app/.next
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:5001
+      - NEXT_PUBLIC_API_URL=http://nginx:80
+    depends_on:
+      - nginx
     profiles: ["app"]
 
 volumes:
   mongo_data:
+    external: true
+    name: travelswipe_mongo_data # the original volume name
   postgres_data:
   redis_data:
+  rabbitmq_data:
