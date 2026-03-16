@@ -61,82 +61,6 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
-  activities-api:
-    build:
-      context: ./dotNetBe
-      dockerfile: Activities.Api/Dockerfile
-    container_name: activities-api
-    ports:
-      - "5101:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      MONGO_URL: mongodb://admin:secretpassword@mongodb:27017/travelswipe_activities?authSource=admin
-      POSTGRES_URL: postgresql://postgres:adminPassword@postgres:5432/travelswipe_activities
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_USER: admin
-      RABBITMQ_PASS: secretpassword
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    restart: unless-stopped
-    profiles: ["app"]
-
-  cities-api:
-    build:
-      context: ./dotNetBe
-      dockerfile: Cities.Api/Dockerfile
-    container_name: cities-api
-    ports:
-      - "5102:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      POSTGRES_URL: postgresql://postgres:adminPassword@postgres:5432/travelswipe_cities
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_USER: admin
-      RABBITMQ_PASS: secretpassword
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    restart: unless-stopped
-    profiles: ["app"]
-
-  countries-api:
-    build:
-      context: ./dotNetBe
-      dockerfile: Countries.Api/Dockerfile
-    container_name: countries-api
-    ports:
-      - "5103:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      POSTGRES_URL: postgresql://postgres:adminPassword@postgres:5432/travelswipe_countries
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_USER: admin
-      RABBITMQ_PASS: secretpassword
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    restart: unless-stopped
-    profiles: ["app"]
-
   nginx:
     image: nginx:alpine
     container_name: nginx
@@ -149,25 +73,100 @@ services:
       - cities-api
       - countries-api
     restart: unless-stopped
-    profiles: ["app"]
+    profiles: ["app", "ng"]
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:80
     container_name: frontend
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
     environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://nginx:80
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:80
+      - HOSTNAME=0.0.0.0
+    profiles: ["FE", "app"]
+  activities-api:
+    build:
+      context: ./dotNetBe
+      dockerfile: Activities.Api/Dockerfile
+    container_name: activities-api
+    ports:
+      - "5101:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__MongoDb: mongodb://admin:secretpassword@mongodb:27017/travelswipe_activities?authSource=admin
+      ConnectionStrings__PostgreSQL: "Host=postgres;Port=5432;Database=travelswipe_activities;Username=postgres;Password=adminPassword"
+      ConnectionStrings__Redis: "redis:6379"
+      SerpApi__ApiKey: db7d54b17ebc694a81e668e447da8fabcc58b55fcd050de740b066bdaead540c
+      SerpApi__BaseUrl: https://serpapi.com/
+      Foursquare__BaseUrl: https://api.foursquare.com/v3/
+      Foursquare__ApiKey: 1ODAJME4YSDNOXFWXCPI2RGC3DNXMZX1PUGMY3YTURZ0D4K5
+      Nominatim__BaseUrl: https://nominatim.openstreetmap.org/
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: admin
+      RabbitMQ__Password: secretpassword
     depends_on:
-      - nginx
-    profiles: ["app"]
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["app", "activities", "microservices"]
+
+  cities-api:
+    build:
+      context: ./dotNetBe
+      dockerfile: Cities.Api/Dockerfile
+    container_name: cities-api
+    ports:
+      - "5102:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__PostgreSQL: "Host=postgres;Port=5432;Database=travelswipe_cities;Username=postgres;Password=adminPassword"
+      ConnectionStrings__Redis: "redis:6379"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: admin
+      RabbitMQ__Password: secretpassword
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["app", "cities", "microservices"]
+
+  countries-api:
+    build:
+      context: ./dotNetBe
+      dockerfile: Countries.Api/Dockerfile
+    container_name: countries-api
+    ports:
+      - "5103:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__PostgreSQL: "Host=postgres;Port=5432;Database=travelswipe_countries;Username=postgres;Password=adminPassword"
+      ConnectionStrings__Redis: "redis:6379"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: admin
+      RabbitMQ__Password: secretpassword
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles: ["app", "countries", "microservices"]
 
 volumes:
   mongo_data:

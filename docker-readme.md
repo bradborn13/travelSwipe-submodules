@@ -1,3 +1,17 @@
+Deploy Individually Microservices
+
+# just activities
+
+docker-compose --profile activities up --build
+
+# just cities
+
+docker-compose --profile cities up --build
+
+# all microservices
+
+docker-compose --profile app up --build
+
 // backup
 docker exec mongodb mongodump \
  --username admin \
